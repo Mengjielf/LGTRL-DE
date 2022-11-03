@@ -6,16 +6,16 @@ import random
 from utils import utils
 from utils.readers import InHospitalMortalityReader
 from utils.preprocessing import Discretizer, Normalizer
+from utils.DataLoader import convert_5fold_mimic
 
 
 small_part = False
 arg_timestep = 1.0
 batch_size = 128
-data_path = './data/row_data/' # 原始临床时序数据的路径
-demo_path = './data/row_data/demographics/' # 原始人口学数据的路径
-save_data_path = './data/test/'  # 处理后数据的保存路径
+data_path = './data/row_data/'
+demo_path = './data/row_data/demographics/'
+save_data_path = './data/processed_data/'
 
-print("===========正在处理临床时序数据===========")
 # Build readers, discretizers, normalizers
 train_reader = InHospitalMortalityReader(dataset_dir=os.path.join(data_path, 'train'),
                                          listfile=os.path.join(data_path, 'train_listfile.csv'),
@@ -42,7 +42,7 @@ normalizer_state = 'ihm_normalizer'
 normalizer_state = os.path.join(os.path.dirname(data_path), normalizer_state)
 normalizer.load_params(normalizer_state)
 
-print("===========正在处理人口学数据===========")
+
 demographic_data = []
 diagnosis_data = []
 idx_list = []
@@ -50,7 +50,7 @@ idx_list = []
 # demographic
 for cur_name in os.listdir(demo_path):
     cur_id, cur_episode = cur_name.split('_', 1)
-    cur_episode = cur_episode[:-4]  # 去掉‘.csv'的标识
+    cur_episode = cur_episode[:-4]
     cur_file = demo_path + cur_name
 
     with open(cur_file, "r") as tsfile:
@@ -60,8 +60,8 @@ for cur_name in os.listdir(demo_path):
         cur_data = tsfile.readline().strip().split(',')
 
     if len(cur_data) == 1:
-        cur_demo = np.zeros(12)  # 看得出这里是把人口数据离散为12维数据了
-        cur_diag = np.zeros(128)  # 这里就是episode里的128维数据(multi-hot vector)
+        cur_demo = np.zeros(12)
+        cur_diag = np.zeros(128)
     else:
         if cur_data[3] == '':
             cur_data[3] = 60.0
@@ -80,7 +80,7 @@ for cur_name in os.listdir(demo_path):
     diagnosis_data.append(cur_diag)
     idx_list.append(cur_id + '_' + cur_episode)
 
-for each_idx in range(9, 12):  # 对人口数据的最后四维(Age、Height、Weight、Length of stay)进行标准化处理
+for each_idx in range(9, 12):
     cur_val = []
     for i in range(len(demographic_data)):
         cur_val.append(demographic_data[i][each_idx])
@@ -91,8 +91,12 @@ for each_idx in range(9, 12):  # 对人口数据的最后四维(Age、Height、W
     for i in range(len(demographic_data)):
         demographic_data[i][each_idx] = (demographic_data[i][each_idx] - _mean) / _std
 
-print("===========正在保存预处理数据===========")
 n_trained_chunks = 0
 train_raw = utils.save_final_data(train_reader, discretizer, normalizer, "train",demographic_data, diagnosis_data, idx_list, save_data_path, small_part, return_names=True)
 val_raw = utils.save_final_data(val_reader, discretizer, normalizer, "val", demographic_data, diagnosis_data, idx_list, save_data_path, small_part, return_names=True)
 test_raw= utils.save_final_data(test_reader, discretizer, normalizer, "test", demographic_data, diagnosis_data, idx_list, save_data_path, small_part, return_names=True)
+
+convert_5fold_mimic(save_data_path+'train.npy',save_data_path+'val.npy',save_data_path+'test.npy',
+                    save_data_path+"static_train.npy",save_data_path+"static_val.npy",save_data_path+"static_test.npy",
+                    save_data_path+"los_train.npy",save_data_path+"los_val.npy",save_data_path+"los_test.npy",
+                    save_data_path+"5fold/")
