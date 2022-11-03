@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from sklearn.model_selection import KFold,train_test_split,StratifiedShuffleSplit,StratifiedKFold
 
 def create_folder(parent_path, folder):
     if not parent_path.endswith('/'):
@@ -9,7 +10,6 @@ def create_folder(parent_path, folder):
         os.makedirs(folder_path)
     return folder_path
 
-'''导入诊断数据'''
 def data_load(train_file,val_file,test_file):
     train=np.load(train_file,allow_pickle=True)
     val=np.load(val_file,allow_pickle=True)
@@ -37,7 +37,7 @@ def data_load(train_file,val_file,test_file):
     y_test=np.array(y_test)
     return x_train,y_train,x_val,y_val,x_test,y_test
 
-'''导入不含标签的单个数据'''
+
 def data_load_single(train_file,val_file,test_file):
     train=np.load(train_file,allow_pickle=True)
     val=np.load(val_file,allow_pickle=True)
@@ -56,7 +56,25 @@ def data_load_single(train_file,val_file,test_file):
     x_test=np.array(x_test)
     return x_train,x_val,x_test
 
-def combine(x1,x2,timesteps=5):  # 合并Dia+Lab
+def data_load_other(train_file,val_file,test_file):
+    train=np.load(train_file,allow_pickle=True)
+    val=np.load(val_file,allow_pickle=True)
+    test=np.load(test_file,allow_pickle=True)
+    x_train=[]
+    x_val=[]
+    x_test=[]
+    for i in range(len(train)):
+        x_train.append(train[i])
+    for i in range(len(val)):
+        x_val.append(val[i])
+    for i in range(len(test)):
+        x_test.append(test[i])
+    x_train=np.array(x_train)
+    x_val=np.array(x_val)
+    x_test=np.array(x_test)
+    return x_train,x_val,x_test
+
+def combine(x1,x2,timesteps=5):
     n=len(x1)
     feature1_num=len(x1[0][0])
     feature2_num=len(x2[0][0])
@@ -80,60 +98,6 @@ def load_demo(train_file,val_file,test_file):
 
     return demographic_train,diagnosis_data_train,demographic_val,diagnosis_data_val,demographic_test,diagnosis_data_test
 
-def separate_neg_pos(x,demo,y,path):
-    '''
-    向下采样所有负序列，使其数目与正序列大致相同。返回正样本，划分的负样本下标,数量
-    '''
-    pos_num = 0
-    neg_num = 0
-    x_positive=[]
-    demo_positive=[]
-    y_positive=[]
-    for i in range(len(y)):
-        if y[i]==1:
-            x_positive.append(x[i])
-            demo_positive.append(demo[i])
-            y_positive.append(y[i])
-            pos_num+=1
-        else:
-            neg_num+=1
-    x_positive=np.array(x_positive)
-    demo_positive=np.array(demo_positive)
-    y_positive=np.array(y_positive)
-    print("pos_num:",pos_num,"\n","neg_num:",neg_num) #pos_num: 1987   neg_num: 12694
-
-    # 将负样本按照正样本的比例将负样本分成neg_num/pos_num份
-    partition=(int)(neg_num/pos_num)
-    rest=neg_num%pos_num
-    every_part_num=pos_num+(int)(rest/partition)  #2115
-    print(partition)
-    neg_pos=[]
-    pt=0 #指向原训练集的指针
-    for i in range(partition-1):
-        cnt=0
-        pos=[]
-        while cnt<every_part_num:
-            if y[pt]==0:
-                cnt+=1
-                pos.append(pt)
-            pt+=1
-        neg_pos.append(pos)
-
-    pos=[]
-    while pt<len(y):
-        if y[pt]==0:
-            pos.append(pt)
-        pt+=1
-    neg_pos.append(pos)
-
-    neg_pos=np.array(neg_pos)
-    for i in range(partition):
-        data_path=path+"train_position"+str(i+1)+".npy"
-        np.save(data_path,neg_pos[i])
-
-    #最后分成了六份，数量分别是2115 2115 2115 2115 2115 2119
-
-    return x_positive,demo_positive,y_positive,neg_pos,partition
 
 def shuffle_data(x,demo,y):
     totalNum=int(len(x))
@@ -154,61 +118,74 @@ def shuffle_data(x,demo,y):
 
     return shuffle_x,shuffle_demo,shuffle_y
 
-def bootstrap(data,demo,label, K):
-    n = len(data)
-    sample_data=[]
-    sample_label=[]
-    sample_demo=[]
-    for i in range(K):
-        idx = np.random.randint(0, n)
-        print(idx)
-        sample_data.append((data[idx]))
-        sample_label.append(label[idx])
-        sample_demo.append(demo[idx])
-    sample_data=np.array(sample_data)
-    sample_demo=np.array(sample_demo)
-    sample_label=np.array(sample_label)
 
-    return sample_data,sample_demo,sample_label
+def convert_5fold_mimic(train_file,val_file,test_file,train_demo_file,val_demo_file,test_demo_file,train_los_file,val_los_file,test_los_file,save_path):
+    x_train, y_train, x_val, y_val, x_test, y_test=data_load(train_file,val_file,test_file)
+    demographic_train,diagnosis_data_train,demographic_val,diagnosis_data_val,demographic_test,diagnosis_data_test=load_demo(train_demo_file,val_demo_file,test_demo_file)
+    los_train,los_val,los_test=data_load_other(train_los_file,val_los_file,test_los_file)
 
-def load_eicu_data(train_file,test_file):
-    train=np.load(train_file,allow_pickle=True)
-    test=np.load(test_file,allow_pickle=True)
-    train_cat = []
-    train_num = []
-    train_y = []
-    test_cat = []
-    test_num = []
-    test_y = []
-    for i in range(len(train)):
-        train_cat.append(train[i][0])
-        train_num.append(train[i][1])
-        train_y.append(train[i][2])
-    for i in range(len(test)):
-        test_cat.append(test[i][0])
-        test_num.append(test[i][1])
-        test_y.append(test[i][2])
-    train_cat=np.array(train_cat)
-    train_num=np.array(train_num)
-    train_y=np.array(train_y)
-    test_cat=np.array(test_cat)
-    test_num=np.array(test_num)
-    test_y=np.array(test_y)
-    return train_cat,train_num,train_y,test_cat,test_num,test_y
+    X=np.concatenate((x_train,x_val,x_test))
+    Y=np.concatenate((y_train,y_val,y_test))
+    Demo=np.concatenate((demographic_train,demographic_val,demographic_test))
+    Los=np.concatenate((los_train,los_val,los_test))
 
-def get_static_dynamic(cat,num):
-    static=cat[:,:,0:3] #'apacheadmissiondx', 'ethnicity', 'gender'
-    temp=num[:,:,0:3] #'admissionheight', 'admissionweight', 'age'
-    # temp=temp.reshape(-1,temp.shape[1],1)
-
-    static=np.concatenate([static,temp],axis=2)
-    static=static[:,0,:]
-
-    dynamic=cat[:,:,3:7]
-    dynamic=np.concatenate([dynamic,num[:,:,0:2]],axis=2)
-    dynamic=np.concatenate([dynamic,num[:,:,3:13]],axis=2)
-
-    return dynamic,static
+    kf=StratifiedKFold(n_splits=5,shuffle=True, random_state=0)
+    for fold_id, (train_idx, test_idx) in enumerate(kf.split(X,Y)):
+        save_kfold_mimic(X,Y,Demo,Los,train_idx,test_idx,fold_id,save_path)
 
 
+def save_kfold_mimic(X,Y,Demo,Los,train_idx,test_idx,kfold,save_path):
+    x=X[train_idx]
+    test_x=X[test_idx]
 
+    y=Y[train_idx]
+    test_y=Y[test_idx]
+
+    demo=Demo[train_idx]
+    test_demo=Demo[test_idx]
+
+    los=Los[train_idx]
+    test_los=Los[test_idx]
+
+    kf = StratifiedShuffleSplit(n_splits = 1,test_size=0.125)
+    for fold_id, (train_index, val_index) in enumerate(kf.split(x,y)):
+        val_x=x[val_index]
+        val_y=y[val_index]
+        val_demo=demo[val_index]
+        val_los=los[val_index]
+
+        train_x=x[train_index]
+        train_y=y[train_index]
+        train_demo=demo[train_index]
+        train_los=los[train_index]
+
+    np.save(save_path+str(kfold+1)+"fold_train_x.npy",train_x)
+    np.save(save_path+str(kfold+1)+"fold_train_y.npy",train_y)
+    np.save(save_path+str(kfold+1)+"fold_train_demo.npy",train_demo)
+    np.save(save_path+str(kfold+1)+"fold_train_los.npy",train_los)
+
+    np.save(save_path+str(kfold+1)+"fold_val_x.npy",val_x)
+    np.save(save_path+str(kfold+1)+"fold_val_y.npy",val_y)
+    np.save(save_path+str(kfold+1)+"fold_val_demo.npy",val_demo)
+    np.save(save_path+str(kfold+1)+"fold_val_los.npy",val_los)
+
+    np.save(save_path + str(kfold + 1) + "fold_test_x.npy", test_x)
+    np.save(save_path + str(kfold + 1) + "fold_test_y.npy", test_y)
+    np.save(save_path + str(kfold + 1) + "fold_test_demo.npy", test_demo)
+    np.save(save_path + str(kfold + 1) + "fold_test_los.npy", test_los)
+
+def load_5fold_mimic(x_file,y_file,demo_file,los_file):
+    x = np.load(x_file, allow_pickle=True)
+    y = np.load(y_file, allow_pickle=True)
+    demo = np.load(demo_file, allow_pickle=True)
+    los = np.load(los_file, allow_pickle=True)
+
+    return x,y,demo,los
+
+'''
+data_path="./data/processed_data/"
+convert_5fold_mimic(data_path+'train.npy',data_path+'val.npy',data_path+'test.npy',
+                    data_path+"static_train.npy",data_path+"static_val.npy",data_path+"static_test.npy",
+                    data_path+"los_train.npy",data_path+"los_val.npy",data_path+"los_test.npy",
+                    data_path+"5fold/")
+'''
