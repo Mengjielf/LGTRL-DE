@@ -11,22 +11,19 @@ from tensorflow.python.ops import math_ops, array_ops, nn
 import numpy as np
 import math
 
-# 用于时间步上的注意机制
-def attention_3d_block2(inputs, single_attention_vector=False):
-    # 如果上一层是LSTM，需要return_sequences=True
+#
+def local_attention(inputs, single_attention_vector=False):
     # inputs.shape = (batch_size, time_steps, input_dim)
     time_steps = K.int_shape(inputs)[1]
     input_dim = K.int_shape(inputs)[2]
-    a = Permute((2, 1))(inputs)  # (batch_size, input_dim, time_steps)
+    conv_a = Conv1D(filters=input_dim, kernel_size=3, name="Local", padding='causal')(inputs)
+    a = Permute((2, 1))(conv_a)  # (batch_size, input_dim, time_steps)
     a = Dense(time_steps, activation='softmax')(a)  # (batch_size, input_dim, time_steps)
     if single_attention_vector:
         a = Lambda(lambda x: K.mean(x, axis=1))(a)
         a = RepeatVector(input_dim)(a)
 
     a_probs = Permute((2, 1))(a)  # (batch_size,  time_steps, input_dim,)
-    # 乘上了attention权重，但是并没有求和，好像影响不大
-    # 如果分类任务，进行Flatten展开就可以了
-    # element-wise
     output_attention_mul = Multiply()([inputs, a_probs])
     return output_attention_mul
 
@@ -70,12 +67,12 @@ def LGTRL_DE(time_steps, N, input_dims, emb_size, trans_emb_size, demo_emb_size,
     lstm = emb_x
     lstm = Concatenate(axis=1)([Reshape((1, -1))(demo), lstm])
     lstm = Bidirectional(CuDNNGRU(units=lstm_units, return_sequences=True, name='gru'))(lstm)
-    lstm_att = attention_3d_block2(lstm)
+    lstm_att = local_attention(lstm)
 
     # Transformer_Encoder
     position = PositionEncoding(trans_emb_size)(lstm_att)
     coding_x = lstm_att + position
-    transformer_depth = N  # 堆叠次数
+    transformer_depth = N  #
     hidden_state = [None for i in range(transformer_depth)]
     trans = coding_x
     for i in range(transformer_depth):
