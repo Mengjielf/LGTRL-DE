@@ -5,7 +5,7 @@ Thanks for your interest in our work.
 
 ## Requirements
 
-* We use Python 3.6.6, keras 2.3.1.
+* We use Python 3.6.6, Keras 2.3.1.
 * If you plan to use GPU computation, install CUDA
 
 ## Data preparation
