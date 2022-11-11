@@ -27,5 +27,6 @@ After building the **in-hospital mortality** dataset, please save the files in `
 3. The trained models are saved in /5_fold_results/mimic_models/ file. Run the following command to test model.
 
        CUDA_VISIBLE_DEVICES=0 python test.py
+       
 
 
