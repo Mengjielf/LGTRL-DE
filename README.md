@@ -21,11 +21,11 @@ After building the **in-hospital mortality** dataset, please save the files in `
        git clone https://github.com/Mengjielf/LGTRL-DE/
        cd LGTRL-DE/
     
-2. Run the command to obtain processed data. The processed data are saved in ```/data/processed_data/``` file.
+2. Run the command to obtain processed data. The processed data are saved in ```/data/processed_data/``` directory.
 
        python data_process.py
 
-3. The trained models are saved in ```/5_fold_results/mimic_models/``` file. Run the following command to test model.
+3. The trained models are saved in ```/5_fold_results/mimic_models/``` directory. Run the following command to test model.
 
        CUDA_VISIBLE_DEVICES=0 python test.py
        
