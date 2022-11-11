@@ -51,7 +51,7 @@ class PositionEncoding(Layer):
 
 
 
-def LGTRL_DE(time_steps, N, input_dims, emb_size, trans_emb_size, demo_emb_size, d_inner_hid, lstm_units, output_dim):
+def LGTRL_DE(time_steps, N, input_dims, emb_size, trans_emb_size, demo_emb_size, d_inner_hid, gru_units, output_dim):
     inputs = []
     x = Input(shape=(time_steps, input_dims[0]))
     inputs.append(x)
@@ -66,7 +66,7 @@ def LGTRL_DE(time_steps, N, input_dims, emb_size, trans_emb_size, demo_emb_size,
     # LSTM
     lstm = emb_x
     lstm = Concatenate(axis=1)([Reshape((1, -1))(demo), lstm])
-    lstm = Bidirectional(CuDNNGRU(units=lstm_units, return_sequences=True, name='gru'))(lstm)
+    lstm = Bidirectional(CuDNNGRU(units=gru_units, return_sequences=True, name='gru'))(lstm)
     lstm_att = local_attention(lstm)
 
     # Transformer_Encoder
@@ -82,7 +82,7 @@ def LGTRL_DE(time_steps, N, input_dims, emb_size, trans_emb_size, demo_emb_size,
     trans = Lambda(lambda x: x, name="trans")(trans)
 
     final_h = Concatenate()([lstm_att, trans])
-    final_h = Bidirectional(CuDNNGRU(units=lstm_units, return_sequences=False, name='gru2'))(final_h)
+    final_h = Bidirectional(CuDNNGRU(units=gru_units, return_sequences=False, name='gru2'))(final_h)
     output = Concatenate()([final_h, demo])
     output = Dropout(rate=0.5)(output)
     output = Dense(output_dim, activation="sigmoid")(output)
