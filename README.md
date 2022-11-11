@@ -1,6 +1,7 @@
 # LGTRL-DE: Local and Global Temporal Representation Learning with Demographic Embedding for In-hospital Mortality Prediction
 
-The source code for *LGTRL-DE: Local and Global Temporal Representation Learning with Demographic Embedding for In-hospital Mortality Prediction* 
+The source code for *LGTRL-DE: Local and Global Temporal Representation Learning with Demographic Embedding for In-hospital Mortality Prediction*.
+
 Thanks for your interest in our work.
 
 ## Requirements
