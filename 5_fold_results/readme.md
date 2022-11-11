@@ -1,1 +1,1 @@
-this file is used to save trained models
+this file is used to save pre-trained models
